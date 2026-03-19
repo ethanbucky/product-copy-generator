@@ -35,16 +35,18 @@ export default function Home() {
   const bufferRef = useRef("");
 
   async function handleSubmit(e: React.FormEvent) {
-    if (usageCount >= FREE_LIMIT) {
-  setError("Free limit reached. Upgrade to continue.");
-  return;
-}
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setResult(null);
-    setStreamBuffer("");
-    bufferRef.current = "";
+  e.preventDefault();
+
+  if (usageCount >= FREE_LIMIT) {
+    setError("Free limit reached. Upgrade to continue.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+  setResult(null);
+  setStreamBuffer("");
+  bufferRef.current = "";
 
     try {
       const res = await fetch("/api/generate", {
@@ -109,7 +111,24 @@ setUsageCount((prev) => prev + 1);
   copyToClipboard(text, "all");
 }
 
-  const isStreaming = loading && streamBuffer.length > 0;
+ async function handleUpgrade() {
+  try {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to start checkout");
+    }
+
+    window.location.href = data.url;
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Upgrade failed");
+  }
+}
+const isStreaming = loading && streamBuffer.length > 0;
 
   return (
     <main className="app">
@@ -139,6 +158,7 @@ setUsageCount((prev) => prev + 1);
               <label htmlFor="tone">Tone</label>
               <select
                 id="tone"
+
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
               >
@@ -176,8 +196,18 @@ setUsageCount((prev) => prev + 1);
               "Generate Copy"
             )}
           </button>
-          {error && <div className="error-box">{error}</div>}
-        </form>
+{error && (
+  <div className="error-box">
+    <div>{error}</div>
+    {usageCount >= FREE_LIMIT && (
+      <div style={{ marginTop: 10 }}>
+        <button type="button" className="btn" onClick={handleUpgrade}>
+          Upgrade
+        </button>
+      </div>
+    )}
+  </div>
+)}        </form>
       </div>
 
       {/* Streaming preview */}
